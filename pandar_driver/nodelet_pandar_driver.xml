@@ -1,9 +1,0 @@
-<library path="lib/libpandar_driver_nodelet">
-  <class name="pandar_driver/DriverNodelet"
-         type="pandar_driver::DriverNodelet"
-         base_class_type="nodelet::Nodelet">
-    <description>
-      pandar packets pulisher.
-    </description>
-  </class>
-</library>

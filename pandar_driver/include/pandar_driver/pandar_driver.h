@@ -1,6 +1,6 @@
 #pragma once
-
-#include <ros/ros.h>
+#include <rclcpp/rclcpp.hpp>
+#include <pandar_msgs/msg/pandar_scan.hpp>
 
 namespace pandar_driver
 {
@@ -8,9 +8,9 @@ class Input;
 class PandarDriver
 {
 public:
-  PandarDriver(ros::NodeHandle node, ros::NodeHandle private_nh);
+  PandarDriver(std::shared_ptr<rclcpp::Node> node);
   ~PandarDriver(){};
-  bool poll(void);
+  bool poll(std::shared_ptr<rclcpp::Node> node);
 
 private:
   std::string device_ip_;
@@ -23,9 +23,11 @@ private:
   std::string frame_id_;
   std::string pcap_path_;
 
-  ros::Publisher pandar_packet_pub_;
   std::shared_ptr<Input> input_;
 
   std::function<bool(size_t)> is_valid_packet_;
+
+  rclcpp::Publisher<pandar_msgs::msg::PandarScan>::SharedPtr pandar_packet_pub_;
+
 };
 }  // namespace pandar_driver

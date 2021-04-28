@@ -1,9 +1,11 @@
 #include <sys/time.h>
 #include <sys/types.h>
 #include <time.h>
+#include "rclcpp/time.hpp"
 #include <unistd.h>
 #include <map>
 #include <cstring>
+#include <sstream>
 #include "pandar_driver/pcap_input.h"
 
 using namespace pandar_driver;
@@ -71,7 +73,7 @@ void PcapInput::initTimeIndexMap()
   time_index_map_.insert(std::pair<std::string, std::pair<int, int>>("PandarXT-16", std::pair<int, int>(559, 553)));
 }
 
-int PcapInput::getPacket(pandar_msgs::PandarPacket* pandar_pkt)
+int PcapInput::getPacket(pandar_msgs::msg::PandarPacket* pandar_pkt)
 {
   pcap_pkthdr* pkt_header;
   const uint8_t* pkt_data;
@@ -85,7 +87,8 @@ int PcapInput::getPacket(pandar_msgs::PandarPacket* pandar_pkt)
       }
       const uint8_t* packet = pkt_data + PKT_HEADER_SIZE;
       int pkt_size = pkt_header->len - PKT_HEADER_SIZE;
-      pandar_pkt->stamp = ros::Time::now();
+
+      pandar_pkt->stamp = rclcpp::Time();
       pandar_pkt->size = pkt_size;
       std::memcpy(&pandar_pkt->data[0], packet, pkt_size);
 

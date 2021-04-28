@@ -1,16 +1,16 @@
-#include <ros/ros.h>
+#include <rclcpp/rclcpp.hpp>
 #include <pandar_driver/pandar_driver.h>
 
 int main(int argc, char* argv[])
 {
-  ros::init(argc, argv, "pandar_driver_node");
-  ros::NodeHandle node;
-  ros::NodeHandle private_nh("~");
+  rclcpp::init(argc, argv);
+  auto node = rclcpp::Node::make_shared("pandar_driver_node");
 
-  pandar_driver::PandarDriver driver(node, private_nh);
+   pandar_driver::PandarDriver driver(node);
 
-  while (ros::ok() && driver.poll()) {
-    ros::spinOnce();
+  while (rclcpp::ok()) {
+    driver.poll(node);
+    rclcpp::spin_some(node);
   }
 
   return 0;

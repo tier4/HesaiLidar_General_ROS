@@ -71,7 +71,7 @@ private:
   std::string ip_;
   uint16_t port_;
 
-  int parseHeader(unsigned char* buffer, int len, TcpCommandHeader* header);
+  int parseHeader(unsigned char* buffer, TcpCommandHeader* header);
   int readCommand(int connfd, TC_Command* cmd);
   int buildHeader(char* buffer, TC_Command* cmd);
   PTC_ErrCode sendCmd(TC_Command* cmd);

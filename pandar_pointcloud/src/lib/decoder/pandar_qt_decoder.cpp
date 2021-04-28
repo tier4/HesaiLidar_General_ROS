@@ -57,7 +57,7 @@ PointcloudXYZIRADT PandarQTDecoder::getPointcloud()
   return scan_pc_;
 }
 
-void PandarQTDecoder::unpack(const pandar_msgs::PandarPacket& raw_packet)
+void PandarQTDecoder::unpack(const pandar_msgs::msg::PandarPacket& raw_packet)
 {
   if (!parsePacket(raw_packet)) {
     return;
@@ -166,7 +166,7 @@ PointcloudXYZIRADT PandarQTDecoder::convert_dual(const int block_id)
   return block_pc;
 }
 
-bool PandarQTDecoder::parsePacket(const pandar_msgs::PandarPacket& raw_packet)
+bool PandarQTDecoder::parsePacket(const pandar_msgs::msg::PandarPacket& raw_packet)
 {
   if (raw_packet.size != PACKET_SIZE && raw_packet.size != PACKET_WITHOUT_UDPSEQ_SIZE) {
     return false;

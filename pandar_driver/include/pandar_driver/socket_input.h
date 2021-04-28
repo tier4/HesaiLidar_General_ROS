@@ -25,9 +25,9 @@ namespace pandar_driver
 class SocketInput : public Input
 {
 public:
-  SocketInput(uint16_t port, uint16_t gpsPort);
+  SocketInput(uint16_t port, uint16_t gpsPort, std::shared_ptr<rclcpp::Node> node );
   ~SocketInput();
-  int getPacket(pandar_msgs::PandarPacket* pkt) override;
+  int getPacket(pandar_msgs::msg::PandarPacket* pkt) override;
 
 private:
   int socketForLidar;

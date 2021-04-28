@@ -83,7 +83,7 @@ TcpCommandClient::PTC_ErrCode TcpCommandClient::sendCmd(TC_Command* cmd)
 
   if (cmd->header.len > 0 && cmd->data) {
     ret = write(fd, cmd->data, cmd->header.len);
-    if (ret != cmd->header.len) {
+    if (ret != (int)cmd->header.len) {
       close(fd);
       pthread_mutex_unlock(&lock_);
       return PTC_ERROR_TRANSFER_FAILED;
@@ -202,7 +202,7 @@ TcpCommandClient::PTC_ErrCode TcpCommandClient::resetCalibration()
   return (PTC_ErrCode)cmd.header.ret_code;
 }
 
-int TcpCommandClient::parseHeader(unsigned char* buffer, int len, TcpCommandHeader* header)
+int TcpCommandClient::parseHeader(unsigned char* buffer, TcpCommandHeader* header)
 {
   int index = 0;
   header->cmd = buffer[index++];
@@ -232,7 +232,7 @@ int TcpCommandClient::readCommand(int connfd, TC_Command* cmd)
     return -1;
   }
 
-  parseHeader(buffer + 2, 6, &cmd->header);
+  parseHeader(buffer + 2, &cmd->header);
 
   if (cmd->header.len > 0) {
     cmd->data = (unsigned char*)malloc(cmd->header.len);
@@ -243,7 +243,7 @@ int TcpCommandClient::readCommand(int connfd, TC_Command* cmd)
   }
 
   ret = sys_readn(connfd, cmd->data, cmd->header.len);
-  if (ret != cmd->header.len) {
+  if (ret != (int)cmd->header.len) {
     free(cmd->data);
     printf("Server Read failed\n");
     return -1;

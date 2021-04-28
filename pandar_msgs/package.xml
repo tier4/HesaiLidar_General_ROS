@@ -1,17 +1,28 @@
 <?xml version="1.0"?>
-<package format="2">
+<package format="3">
   <name>pandar_msgs</name>
   <version>0.0.0</version>
-  <description> ROS message definition for the Heisai PandarQT/Pandar64/Pandar40P/Pandar20A/Pandar20B/Pandar40M LiDAR sensor.
+  <description> ROS message definition for the Heisai PandarQT/Pandar40P LiDAR sensor.
   </description>
   <maintainer email="shinnosuke.hirakawa@tier.jp">hirakawa</maintainer>
   <license>Apache 2</license>
 
-  <buildtool_depend>catkin</buildtool_depend>
+  <!-- change the buildtool from catkin to ament_cmake -->
+  <buildtool_depend>ament_cmake</buildtool_depend>
 
-  <build_depend>message_generation</build_depend>
+  <!-- use rosidl_default_generators instead of message_generation -->
+  <build_depend>rosidl_default_generators</build_depend>
+
   <build_depend>std_msgs</build_depend>
 
-  <exec_depend>message_runtime</exec_depend>
-  <exec_depend>std_msgs</exec_depend>
+  <!-- use rosidl_default_runtime instead of message_runtime -->
+  <exec_depend>rosidl_default_runtime</exec_depend>
+
+  <!-- add to the rosidl_interface_packages group-->
+  <member_of_group>rosidl_interface_packages</member_of_group>
+
+  <export>
+    <build_type>ament_cmake</build_type>
+  </export>
+
 </package>

@@ -1,15 +1,15 @@
-#include <ros/ros.h>
+#include <rclcpp/rclcpp.hpp>
 #include "pandar_pointcloud/pandar_cloud.hpp"
 
 int main(int argc, char* argv[])
 {
-  ros::init(argc, argv, "pandar_cloud_node");
-  ros::NodeHandle node;
-  ros::NodeHandle private_nh("~");
+  rclcpp::init(argc, argv);
+  auto node = rclcpp::Node::make_shared("pandar_cloud_node");
 
-  pandar_pointcloud::PandarCloud conv(node, private_nh);
+  pandar_pointcloud::PandarCloud conv(node);
 
-  ros::spin();
-
+  while (rclcpp::ok()) {
+      rclcpp::spin_some(node);
+  }
   return 0;
 }

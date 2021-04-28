@@ -27,7 +27,7 @@ public:
   PcapInput(uint16_t port, uint16_t gps_port, std::string path, std::string model);
   ~PcapInput();
 
-  int getPacket(pandar_msgs::PandarPacket* pandar_pkt) override;
+  int getPacket(pandar_msgs::msg::PandarPacket* pandar_pkt) override;
 
 private:
   void initTimeIndexMap();

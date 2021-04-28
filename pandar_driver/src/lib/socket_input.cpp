@@ -25,6 +25,8 @@
 #include <iostream>
 #include <sstream>
 #include <time.h>
+#include <rclcpp/time.hpp>
+#include <rclcpp/rclcpp.hpp>
 #include <unistd.h>
 // #include "pandar_driver/tcp_util.h"
 #include "pandar_driver/socket_input.h"
@@ -36,13 +38,14 @@ namespace
 const size_t ETHERNET_MTU = 1500;
 }
 
-SocketInput::SocketInput(uint16_t port, uint16_t gpsPort)
+SocketInput::SocketInput(uint16_t port, uint16_t gpsPort,std::shared_ptr<rclcpp::Node> node)
 {
   // LOG_D("port: %d, gpsPort: %d", port,gpsPort);
   socketForLidar = -1;
   socketForLidar = socket(PF_INET, SOCK_DGRAM, 0);
   if (socketForLidar == -1) {
-    perror("socket");  // TODO(Philip.Pi): perror errno.
+//    perror("socket");  // TODO(Philip.Pi): perror errno.
+    RCLCPP_ERROR(node->get_logger(), " >>> Socket Error");
     return;
   }
 
@@ -53,24 +56,28 @@ SocketInput::SocketInput(uint16_t port, uint16_t gpsPort)
   myAddress.sin_addr.s_addr = INADDR_ANY;    // automatically fill in my IP
 
   if (bind(socketForLidar, reinterpret_cast<sockaddr*>(&myAddress), sizeof(sockaddr)) == -1) {
-    perror("bind");  // TODO(Philip.Pi): perror errno
+//    perror("bind");  // TODO(Philip.Pi): perror errno
+    RCLCPP_ERROR(node->get_logger(), " >>> Bind Error");
     return;
   }
 
   if (fcntl(socketForLidar, F_SETFL, O_NONBLOCK | FASYNC) < 0) {
-    perror("non-block");
+//    perror("non-block");
+    RCLCPP_ERROR(node->get_logger(), " >>> Non Block Error");
     return;
   }
 
   if (port == gpsPort) {
     socketNumber = 1;
+    RCLCPP_ERROR(node->get_logger(), " >>> Bind Error");
     return;
   }
   // gps socket
   socketForGPS = -1;
   socketForGPS = socket(PF_INET, SOCK_DGRAM, 0);
   if (socketForGPS == -1) {
-    perror("socket");  // TODO(Philip.Pi): perror errno.
+//    perror("socket");  // TODO(Philip.Pi): perror errno.
+    RCLCPP_ERROR(node->get_logger(), " >>> LIDRA port is the same as GPS Error");
     return;
   }
 
@@ -81,15 +88,18 @@ SocketInput::SocketInput(uint16_t port, uint16_t gpsPort)
   myAddressGPS.sin_addr.s_addr = INADDR_ANY;       // automatically fill in my IP
 
   if (bind(socketForGPS, reinterpret_cast<sockaddr*>(&myAddressGPS), sizeof(sockaddr)) == -1) {
-    perror("bind");  // TODO(Philip.Pi): perror errno
+//    perror("bind");  // TODO(Philip.Pi): perror errno
+    RCLCPP_ERROR(node->get_logger(), " >>> Bind Error");
     return;
   }
 
   if (fcntl(socketForGPS, F_SETFL, O_NONBLOCK | FASYNC) < 0) {
-    perror("non-block");
+//    perror("non-block");
+    RCLCPP_ERROR(node->get_logger(), " >>> Non Block Error");
     return;
   }
   socketNumber = 2;
+// RCLCPP_ERROR(node->get_logger(), " >>> Exit SocketInput() ");
 }
 
 SocketInput::~SocketInput(void)
@@ -103,7 +113,7 @@ SocketInput::~SocketInput(void)
 // return : 0 - lidar
 //          1 - gps
 //          -1 - error
-int SocketInput::getPacket(pandar_msgs::PandarPacket* pkt)
+int SocketInput::getPacket(pandar_msgs::msg::PandarPacket* pkt)
 {
   struct pollfd fds[socketNumber];
   if (socketNumber == 2) {
@@ -138,7 +148,8 @@ int SocketInput::getPacket(pandar_msgs::PandarPacket* pkt)
 
   senderAddressLen = sizeof(senderAddress);
   ssize_t nbytes;
-  pkt->stamp = ros::Time::now();
+//  rclcpp::Clock ros_clock(RCL_ROS_TIME);
+  pkt->stamp = rclcpp::Time();
   // double time = getNowTimeSec();
   for (int i = 0; i != socketNumber; ++i) {
     if (fds[i].revents & POLLIN) {

@@ -1,39 +1,49 @@
-cmake_minimum_required(VERSION 3.0.2)
+cmake_minimum_required(VERSION 3.5)
 project(pandar_driver)
 
-add_compile_options(-std=c++14)
+# Remove the catkin dependency and add ament_cmake
+find_package(ament_cmake REQUIRED)
 
+# Default to C++14
+if(NOT CMAKE_CXX_STANDARD)
+  set(CMAKE_CXX_STANDARD 14)
+endif()
 
-find_package(catkin REQUIRED COMPONENTS
-  roscpp
-  roslib
-  nodelet
-  pluginlib
-  pandar_msgs
+if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+  add_compile_options(-Wall -Wextra)
+endif()
+
+# You specify the individual packages that are required for building like this:
+find_package(builtin_interfaces REQUIRED)
+find_package(rosidl_default_generators REQUIRED)
+find_package(rclcpp_components REQUIRED)
+find_package(pandar_msgs)
+
+find_package(
+  ament_cmake REQUIRED COMPONENTS
 )
 
-catkin_package(
-  INCLUDE_DIRS
-    include
-  CATKIN_DEPENDS
-    pandar_msgs
-  LIBRARIES
-    pandar_input
+include_directories(include 
+  ${pandar_driver_INCLUDE_DIRS}
+  ${pandar_msgs_INCLUDE_DIRS}
+  ${rclcpp_INCLUDE_DIRS}
 )
 
-include_directories(
-  include
-  ${catkin_INCLUDE_DIRS}
-)
+ament_export_dependencies(pandar_msgs)
+ament_export_include_directories(include)
+ament_export_libraries(pandar_input)
+
 
 # Target
 add_library(pandar_input
   src/lib/socket_input.cpp
   src/lib/pcap_input.cpp
 )
+
+##ament_target_dependencies(pandar_input
 target_link_libraries(pandar_input
   pcap
-  ${catkin_LIBRARIES}
+  ${rclcpp_LIBRARIES}
 )
 
 ## add node
@@ -41,53 +51,39 @@ add_executable(pandar_driver_node
   src/driver/node.cpp
   src/driver/pandar_driver.cpp
 )
-
+##ament_target_dependencies(pandar_driver_node
 target_link_libraries(pandar_driver_node
-  pandar_input  
-  ${catkin_LIBRARIES}
-)
-
-## add nodelet
-add_library(pandar_driver_nodelet
-  src/driver/nodelet.cpp
-  src/driver/pandar_driver.cpp
-)
-
-target_link_libraries(pandar_driver_nodelet
   pandar_input
-  ${catkin_LIBRARIES}
+  ${rclcpp_LIBRARIES}
 )
-
 
 # Install
 ## executables and libraries
 install(
   TARGETS
     pandar_driver_node
-    pandar_driver_nodelet
     pandar_input
-  ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
-  LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
-  RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
+  ARCHIVE DESTINATION lib
+  LIBRARY DESTINATION lib/${PROJECT_NAME}
+  RUNTIME DESTINATION lib/${PROJECT_NAME}
 )
 
 ## files
-install(
-  FILES
-    nodelet_pandar_driver.xml
-  DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}
-)
 
 ## project namespaced headers
 install(
   DIRECTORY
-    include/${PROJECT_NAME}/
-  DESTINATION ${CATKIN_PACKAGE_INCLUDE_DESTINATION}
+    include
+  DESTINATION include/${PROJECT_NAME}
 )
+
+ament_export_include_directories(include)
 
 ## directories
 install(
   DIRECTORY
     launch
-  DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}
+  DESTINATION share/${PROJECT_NAME}
 )
+
+ament_package()
