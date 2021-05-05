@@ -19,7 +19,7 @@ public:
 
 private:
   bool setupCalibration();
-  void onProcessScan(const pandar_msgs::msg::PandarScan::SharedPtr msg);
+  void onProcessScan(const pandar_msgs::msg::PandarScan::UniquePtr msg);
   pcl::PointCloud<PointXYZIR>::Ptr convertPointcloud(const pcl::PointCloud<PointXYZIRADT>::ConstPtr& input_pointcloud);
 
   std::string model_;

@@ -53,7 +53,7 @@ bool PandarDriverCore::poll(void)
 {
   int scan_phase = static_cast<int>(scan_phase_ * 100.0);
 
-  auto scan = std::make_shared<pandar_msgs::msg::PandarScan>();
+  auto scan = std::make_unique<pandar_msgs::msg::PandarScan>();
   for (int prev_phase = 0;;) {  // finish scan
     while (true) {              // until receive lidar packet
       pandar_msgs::msg::PandarPacket packet;
@@ -84,6 +84,6 @@ bool PandarDriverCore::poll(void)
 
   scan->header.stamp = scan->packets.front().stamp;
   scan->header.frame_id = frame_id_;
-  pandar_packet_pub_->publish(*scan);
+  pandar_packet_pub_->publish(std::move(scan));
   return true;
 }

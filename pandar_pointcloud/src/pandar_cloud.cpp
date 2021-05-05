@@ -91,7 +91,7 @@ bool PandarCloud::setupCalibration()
   return false;
 }
 
-void PandarCloud::onProcessScan(const pandar_msgs::msg::PandarScan::SharedPtr scan_msg)
+void PandarCloud::onProcessScan(const pandar_msgs::msg::PandarScan::UniquePtr scan_msg)
 {
   PointcloudXYZIRADT pointcloud;
   pandar_msgs::msg::PandarPacket pkt;
