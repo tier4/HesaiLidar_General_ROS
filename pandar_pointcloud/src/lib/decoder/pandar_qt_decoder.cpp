@@ -130,7 +130,6 @@ PointcloudXYZIRADT PandarQTDecoder::convert(const int block_id)
 
   const auto& block = packet_.blocks[block_id];
   for (size_t unit_id = 0; unit_id < UNIT_NUM; ++unit_id) {
-    //PointXYZIRADT point;
     const auto& unit = block.units[unit_id];
     // skip invalid points
     if (unit.distance <= 0.1 || unit.distance > 200.0) {
