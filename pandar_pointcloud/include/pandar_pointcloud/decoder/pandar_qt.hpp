@@ -22,7 +22,7 @@ constexpr size_t BODY_SIZE = BLOCK_SIZE * BLOCK_NUM;
 constexpr size_t RESERVED_SIZE = 10;
 constexpr size_t ENGINE_VELOCITY = 2;
 constexpr size_t TIMESTAMP_SIZE = 4;
-constexpr size_t ECHO_SIZE = 1;
+constexpr size_t RETURN_SIZE = 1;
 constexpr size_t FACTORY_SIZE = 1;
 constexpr size_t UTC_SIZE = 6;
 constexpr size_t SEQUENCE_SIZE = 4;
@@ -33,9 +33,9 @@ constexpr size_t PACKET_TAIL_WITHOUT_UDPSEQ_SIZE = 24;
 constexpr size_t PACKET_SIZE = HEAD_SIZE + BODY_SIZE + PACKET_TAIL_SIZE;
 constexpr size_t PACKET_WITHOUT_UDPSEQ_SIZE = HEAD_SIZE + BODY_SIZE + PACKET_TAIL_WITHOUT_UDPSEQ_SIZE;
 
-constexpr uint32_t FIRST_ECHO = 0x33;
-constexpr uint32_t LAST_ECHO = 0x38;
-constexpr uint32_t DUAL_ECHO = 0x3B;
+constexpr uint32_t FIRST_RETURN = 0x33;
+constexpr uint32_t LAST_RETURN = 0x38;
+constexpr uint32_t DUAL_RETURN = 0x3B;
 
 struct Header
 {
@@ -68,7 +68,7 @@ struct Packet
   Header header;
   Block blocks[BLOCK_NUM];
   uint32_t usec;  // ms
-  uint32_t echo;
+  uint32_t return_mode;
   tm t;
 };
 }  // namespace pandar_qt

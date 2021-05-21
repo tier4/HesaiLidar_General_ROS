@@ -1,5 +1,6 @@
 #include "pandar_pointcloud/decoder/pandar40_decoder.hpp"
 #include "pandar_pointcloud/decoder/pandar40.hpp"
+#include "rcutils/logging_macros.h"
 
 namespace
 {
@@ -13,7 +14,7 @@ namespace pandar_pointcloud
 {
 namespace pandar40
 {
-Pandar40Decoder::Pandar40Decoder(Calibration& calibration, float scan_phase, ReturnMode return_mode)
+Pandar40Decoder::Pandar40Decoder(Calibration& calibration, float scan_phase, double dual_return_distance_threshold, ReturnMode return_mode)
 {
   firing_order_ = { 7,  19, 14, 26, 6,  18, 4,  32, 36, 0, 10, 22, 17, 29, 9,  21, 5,  33, 37, 1,
                     13, 25, 20, 30, 12, 8,  24, 34, 38, 2, 16, 28, 23, 31, 15, 11, 27, 35, 39, 3 };
@@ -38,6 +39,7 @@ Pandar40Decoder::Pandar40Decoder(Calibration& calibration, float scan_phase, Ret
 
   scan_phase_ = static_cast<uint16_t>(scan_phase * 100.0f);
   return_mode_ = return_mode;
+  dual_return_distance_threshold_ = dual_return_distance_threshold;
 
   last_phase_ = 0;
   has_scanned_ = false;
@@ -68,7 +70,15 @@ void Pandar40Decoder::unpack(const pandar_msgs::msg::PandarPacket& raw_packet)
     has_scanned_ = false;
   }
 
-  bool dual_return = (packet_.echo == DUAL_ECHO);
+  bool dual_return = (packet_.return_mode == DUAL_RETURN);
+
+  if (!dual_return) {
+    if ((packet_.return_mode == STRONGEST_RETURN && return_mode_ != ReturnMode::STRONGEST) || 
+        (packet_.return_mode == LAST_RETURN && return_mode_ != ReturnMode::LAST)) {
+      RCUTILS_LOG_WARN ("Sensor return mode configuration does not match requested return mode");
+    }
+  }
+
   auto step = dual_return ? 2 : 1;
 
   for (size_t block_id = 0; block_id < BLOCKS_PER_PACKET; block_id += step) {
@@ -86,38 +96,41 @@ void Pandar40Decoder::unpack(const pandar_msgs::msg::PandarPacket& raw_packet)
   return;
 }
 
+PointXYZIRADT Pandar40Decoder::build_point(size_t block_id, int unit_id, int8_t return_type)
+{
+  const auto& block = packet_.blocks[block_id];
+  const auto& unit = block.units[unit_id];
+  double unix_second = static_cast<double>(timegm(&packet_.t));
+  bool dual_return = (packet_.return_mode == DUAL_RETURN);
+  PointXYZIRADT point;
+
+  double xyDistance = unit.distance * cosf(deg2rad(elev_angle_[unit_id]));
+
+  point.x = static_cast<float>(
+      xyDistance * sinf(deg2rad(azimuth_offset_[unit_id] + (static_cast<double>(block.azimuth)) / 100.0)));
+  point.y = static_cast<float>(
+      xyDistance * cosf(deg2rad(azimuth_offset_[unit_id] + (static_cast<double>(block.azimuth)) / 100.0)));
+  point.z = static_cast<float>(unit.distance * sinf(deg2rad(elev_angle_[unit_id])));
+
+  point.intensity = unit.intensity;
+  point.distance = unit.distance;
+  point.ring = unit_id;
+  point.azimuth = block.azimuth + round(azimuth_offset_[unit_id] * 100.0f);
+  point.return_type = return_type;
+  point.time_stamp = unix_second + (static_cast<double>(packet_.usec)) / 1000000.0;
+
+  point.time_stamp -= dual_return ? (static_cast<double>(block_offset_dual_[block_id] + firing_offset_[unit_id]) / 1000000.0f) :
+                                    (static_cast<double>(block_offset_single_[block_id] + firing_offset_[unit_id]) / 1000000.0f); 
+
+  return point;
+}
+
 PointcloudXYZIRADT Pandar40Decoder::convert(size_t block_id)
 {
   PointcloudXYZIRADT block_pc(new pcl::PointCloud<PointXYZIRADT>);
 
-  // double unix_second = raw_packet.header.stamp.toSec() // system-time (packet receive time)
-  double unix_second = static_cast<double>(timegm(&packet_.t));  // sensor-time (ppt/gps)
-
   for (auto unit_id : firing_order_) {
-    PointXYZIRADT point;
-    const auto& block = packet_.blocks[block_id];
-    const auto& unit = block.units[unit_id];
-    // skip invalid points
-    if (unit.distance <= 0.1 || unit.distance > 200.0) {
-      continue;
-    }
-    double xyDistance = unit.distance * cosf(deg2rad(elev_angle_[unit_id]));
-
-    point.x = static_cast<float>(
-        xyDistance * sinf(deg2rad(azimuth_offset_[unit_id] + (static_cast<double>(block.azimuth)) / 100.0)));
-    point.y = static_cast<float>(
-        xyDistance * cosf(deg2rad(azimuth_offset_[unit_id] + (static_cast<double>(block.azimuth)) / 100.0)));
-    point.z = static_cast<float>(unit.distance * sinf(deg2rad(elev_angle_[unit_id])));
-
-    point.intensity = unit.intensity;
-    point.distance = unit.distance;
-    point.ring = unit_id;
-    point.azimuth = block.azimuth + round(azimuth_offset_[unit_id] * 100.0f);
-
-    point.time_stamp = unix_second + (static_cast<double>(packet_.usec)) / 1000000.0;
-    point.time_stamp -= (static_cast<double>(block_offset_single_[block_id] + firing_offset_[unit_id]) / 1000000.0f);
-
-    block_pc->push_back(point);
+    block_pc->push_back(build_point(block_id, unit_id, (packet_.return_mode == STRONGEST_RETURN) ? ReturnType::SINGLE_STRONGEST : ReturnType::SINGLE_LAST)); 
   }
   return block_pc;
 }
@@ -125,42 +138,61 @@ PointcloudXYZIRADT Pandar40Decoder::convert(size_t block_id)
 PointcloudXYZIRADT Pandar40Decoder::convert_dual(size_t block_id)
 {
   //   Under the Dual Return mode, the measurements from each round of firing are stored in two adjacent blocks:
-  // · The odd number block is the last return, and the even number block is the strongest return
-  // · If the last and strongest returns coincide, the second strongest return will be placed in the even number block
+  // · The even number block is the last return, and the odd number block is the strongest return
+  // · If the last and strongest returns coincide, the second strongest return will be placed in the odd number block
   // · The Azimuth changes every two blocks
+  // · Important note: Hesai datasheet block numbering starts from 0, not 1, so odd/even are reversed here
   PointcloudXYZIRADT block_pc(new pcl::PointCloud<PointXYZIRADT>);
-  double unix_second = static_cast<double>(timegm(&packet_.t));
 
-  auto head = block_id + ((return_mode_ == ReturnMode::STRONGEST) ? 1 : 0);
-  auto tail = block_id + ((return_mode_ == ReturnMode::LAST) ? 1 : 2);
+  int even_block_id = block_id;
+  int odd_block_id = block_id + 1;
+  const auto& even_block = packet_.blocks[even_block_id];
+  const auto& odd_block = packet_.blocks[odd_block_id];
 
   for (auto unit_id : firing_order_) {
-    for (size_t i = head; i < tail; ++i) {
-      PointXYZIRADT point;
-      const auto& block = packet_.blocks[i];
-      const auto& unit = block.units[unit_id];
-      // skip invalid points
-      if (unit.distance <= 0.1 || unit.distance > 200.0) {
-        continue;
+
+    const auto& even_unit = even_block.units[unit_id];
+    const auto& odd_unit = odd_block.units[unit_id];
+
+    bool even_usable = (even_unit.distance <= 0.1 || even_unit.distance > 200.0) ? 0 : 1;
+    bool odd_usable = (odd_unit.distance <= 0.1 || odd_unit.distance > 200.0) ? 0 : 1;  
+
+    if (return_mode_ == ReturnMode::STRONGEST) {
+      // Strongest return is in even block when both returns coincide
+      if (even_unit.intensity >= odd_unit.intensity && even_usable) {
+        block_pc->push_back(build_point(even_block_id, unit_id, ReturnType::SINGLE_STRONGEST));        
       }
-      double xyDistance = unit.distance * cosf(deg2rad(elev_angle_[unit_id]));
-
-      point.x = static_cast<float>(
-          xyDistance * sinf(deg2rad(azimuth_offset_[unit_id] + (static_cast<double>(block.azimuth)) / 100.0)));
-      point.y = static_cast<float>(
-          xyDistance * cosf(deg2rad(azimuth_offset_[unit_id] + (static_cast<double>(block.azimuth)) / 100.0)));
-      point.z = static_cast<float>(unit.distance * sinf(deg2rad(elev_angle_[unit_id])));
-
-      point.intensity = unit.intensity;
-      point.distance = unit.distance;
-
-      point.ring = unit_id;
-      point.azimuth = block.azimuth;
-
-      point.time_stamp = unix_second + (static_cast<double>(packet_.usec)) / 1000000.0;
-      point.time_stamp -= (static_cast<double>(block_offset_dual_[i] + firing_offset_[unit_id]) / 1000000.0f);
-
-      block_pc->push_back(point);
+      else if (even_unit.intensity < odd_unit.intensity && odd_usable) {
+        block_pc->push_back(build_point(odd_block_id, unit_id, ReturnType::SINGLE_STRONGEST)); 
+      }      
+    }
+    else if (return_mode_ == ReturnMode::LAST && even_usable) {
+      // Last return is always in even block
+      block_pc->push_back(build_point(even_block_id, unit_id, ReturnType::SINGLE_LAST)); 
+    }
+    else if (return_mode_ == ReturnMode::DUAL) {
+      // If the two returns are too close, only return the last one
+      if ((abs(even_unit.distance - odd_unit.distance) < dual_return_distance_threshold_) && even_usable) {
+        block_pc->push_back(build_point(even_block_id, unit_id, ReturnType::DUAL_ONLY));
+      }
+      else if (even_unit.intensity >= odd_unit.intensity) {
+        // Strongest return is in even block when it is also the last
+        if (odd_usable) {
+          block_pc->push_back(build_point(odd_block_id, unit_id, ReturnType::DUAL_WEAK_FIRST));
+        }
+        if (even_usable) {
+          block_pc->push_back(build_point(even_block_id, unit_id, ReturnType::DUAL_STRONGEST_LAST));
+        }
+      }
+      else {
+        // Normally, strongest return is in odd block and last return is in even block
+        if (odd_usable) {
+          block_pc->push_back(build_point(odd_block_id, unit_id, ReturnType::DUAL_STRONGEST_FIRST));
+        }
+        if (even_usable) {
+          block_pc->push_back(build_point(even_block_id, unit_id, ReturnType::DUAL_WEAK_LAST));
+        }      
+      }
     }
   }
   return block_pc;
@@ -210,9 +242,9 @@ bool Pandar40Decoder::parsePacket(const pandar_msgs::msg::PandarPacket& raw_pack
   packet_.usec %= 1000000;
 
   index += TIMESTAMP_SIZE;
-  packet_.echo = buf[index] & 0xff;
+  packet_.return_mode = buf[index] & 0xff;
 
-  index += FACTORY_INFO_SIZE + ECHO_SIZE;
+  index += FACTORY_INFO_SIZE + RETURN_SIZE;
 
   packet_.t.tm_year = (buf[index + 0] & 0xff) + 100;
 

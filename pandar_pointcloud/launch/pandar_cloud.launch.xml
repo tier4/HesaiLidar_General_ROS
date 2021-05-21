@@ -1,5 +1,7 @@
 <launch>
   <arg name="scan_phase"  default="0.0"/>
+  <arg name="return_mode" default="Dual"/>
+  <arg name="dual_return_distance_threshold" default="0.1"/>
   <arg name="model" default="Pandar40P"/>
   <arg name="device_ip" default="192.168.1.201"/>
   <arg name="calibration" default="$(find-pkg-share pandar_pointcloud)/config/40p.csv"/>
@@ -10,6 +12,8 @@
     <remap from="pandar_points_ex" to="pointcloud_raw_ex" />
     <param name="scan_phase"  type="double" value="$(var scan_phase)"/>
     <param name="model"  type="string" value="$(var model)"/>
+    <param name="return_mode"  type="string" value="$(var return_mode)"/>
+    <param name="dual_return_distance_threshold"  type="double" value="$(var dual_return_distance_threshold)"/>
     <param name="device_ip" type="string" value="$(var device_ip)"/>
     <param name="calibration" type="string" value="$(var calibration)"/>
   </node>

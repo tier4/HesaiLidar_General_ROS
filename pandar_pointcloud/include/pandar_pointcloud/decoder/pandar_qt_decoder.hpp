@@ -18,9 +18,19 @@ public:
     FIRST,
     LAST,
   };
+  enum ReturnType : int8_t
+  {
+    INVALID = 0,
+    SINGLE_FIRST,
+    SINGLE_LAST,
+    DUAL_FIRST,
+    DUAL_LAST,
+    DUAL_ONLY,
+  };
 
-  PandarQTDecoder(Calibration& calibration, float scan_phase = 0.0f, ReturnMode return_mode = ReturnMode::DUAL);
+  PandarQTDecoder(Calibration& calibration, float scan_phase = 0.0f, double dual_return_distance_threshold = 0.1, ReturnMode return_mode = ReturnMode::DUAL);
   void unpack(const pandar_msgs::msg::PandarPacket& raw_packet) override;
+  PointXYZIRADT build_point(int block_id, int unit_id, int8_t return_type);
   bool hasScanned() override;
   PointcloudXYZIRADT getPointcloud() override;
 
@@ -37,6 +47,7 @@ private:
   std::array<float, BLOCK_NUM> block_offset_dual_;
 
   ReturnMode return_mode_;
+  double dual_return_distance_threshold_;
   Packet packet_;
 
   PointcloudXYZIRADT scan_pc_;

@@ -18,14 +18,26 @@ public:
     STRONGEST,
     LAST,
   };
+  enum ReturnType : int8_t
+  {
+    INVALID = 0,
+    SINGLE_STRONGEST,
+    SINGLE_LAST,
+    DUAL_STRONGEST_FIRST,
+    DUAL_STRONGEST_LAST,
+    DUAL_WEAK_FIRST,
+    DUAL_WEAK_LAST,
+    DUAL_ONLY,
+  };
 
-  Pandar40Decoder(Calibration& calibration, float scan_phase = 0.0f, ReturnMode return_mode = ReturnMode::DUAL);
+  Pandar40Decoder(Calibration& calibration, float scan_phase = 0.0f, double dual_return_distance_threshold = 0.1, ReturnMode return_mode = ReturnMode::DUAL);
   void unpack(const pandar_msgs::msg::PandarPacket& raw_packet) override;
   bool hasScanned() override;
   PointcloudXYZIRADT getPointcloud() override;
 
 private:
   bool parsePacket(const pandar_msgs::msg::PandarPacket& raw_packet);
+  PointXYZIRADT build_point(size_t block_id, int unit_id, int8_t return_type);
   PointcloudXYZIRADT convert(const size_t block_id);
   PointcloudXYZIRADT convert_dual(const size_t block_id);
 
@@ -39,6 +51,7 @@ private:
   std::array<size_t, LASER_COUNT> firing_order_;
 
   ReturnMode return_mode_;
+  double dual_return_distance_threshold_;
   Packet packet_;
 
   PointcloudXYZIRADT scan_pc_;
