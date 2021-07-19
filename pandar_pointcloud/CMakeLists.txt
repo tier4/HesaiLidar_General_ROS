@@ -37,6 +37,7 @@ add_library(pandar_cloud
   src/lib/decoder/pandar40_decoder.cpp
   src/lib/decoder/pandar_qt_decoder.cpp
   src/lib/decoder/pandar_xt_decoder.cpp
+  src/lib/decoder/pandar64_decoder.cpp
 )
 target_link_libraries(pandar_cloud
   ${catkin_LIBRARIES}
